@@ -110,6 +110,8 @@ type Job = Result<Built, String>;
 /// most this many kernel computations going beside the current one.
 const DETACHED: usize = 2;
 
+const WEB_SETTLE_MS: f64 = 450.0;
+
 #[derive(Default)]
 pub struct PreviewState {
     /// Key of the commands whose result (or error) is shown.
@@ -142,6 +144,9 @@ pub struct PreviewState {
     /// Time the last preview took (ms), for `ui.inspect`.
     pub ms: f64,
     started: f64,
+    /// Web only: the inputs waiting to hold still before their preview computes, and since when.
+    settle_key: Option<u64>,
+    settle_since: f64,
     /// The smallest and largest radius the previewed fillet used when it reduced the one asked for.
     pub applied: Option<(f64, f64)>,
     /// The reply of a previewed drive that stopped short (see [`Built::stopped`]).
@@ -396,6 +401,19 @@ pub fn update(app: &mut SolveApp, ctx: &egui::Context) {
     let tool = as_new_body(&cmds).is_some();
     let pv = &mut app.preview;
     pv.poll(key, stream_key);
+    // The web has no threads, so a preview blocks the window while it computes. There, inputs
+    // must hold still briefly first: typing a radius computes once, not on every keystroke.
+    if cfg!(target_arch = "wasm32") && pv.running.is_none() && pv.shown_key.is_some_and(|k| k != key) {
+        let now = crate::now_ms();
+        if pv.settle_key != Some(key) {
+            pv.settle_key = Some(key);
+            pv.settle_since = now;
+        }
+        if now - pv.settle_since < WEB_SETTLE_MS {
+            ctx.request_repaint_after(std::time::Duration::from_millis(WEB_SETTLE_MS as u64));
+            return;
+        }
+    }
     if pv.running.is_none() && pv.shown_key != Some(key) {
         pv.started = crate::now_ms();
         pv.running_stream_key = stream_key;
