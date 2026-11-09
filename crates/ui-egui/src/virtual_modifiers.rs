@@ -1,6 +1,6 @@
 //! On-screen Shift and Ctrl toggles for touch and pen input with no keyboard.
 
-use egui::{Align2, Event, Modifiers, RawInput, Rect, RichText, vec2};
+use egui::{Align2, Event, Key, Modifiers, RawInput, Rect, RichText, vec2};
 
 use crate::SolveApp;
 
@@ -31,7 +31,14 @@ pub fn apply(raw: &mut RawInput, real: &mut Modifiers, was: &mut Modifiers, shif
     *was = v;
 }
 
-/// Two latched buttons in a strip the user drags anywhere by its grip; it starts above the
+/// One key tap, through the synthetic queue so it arrives as a press and release next frame.
+fn press(app: &mut SolveApp, key: Key) {
+    for pressed in [true, false] {
+        app.synthetic.push(Event::Key { key, physical_key: None, pressed, repeat: false, modifiers: Modifiers::NONE });
+    }
+}
+
+/// Latched Shift/Ctrl and one-tap Esc/Del in a strip the user drags anywhere by its grip; it starts above the
 /// viewport's bottom toolbar.
 pub(crate) fn show(app: &mut SolveApp, ui: &egui::Ui, rect: Rect) {
     egui::Area::new(egui::Id::unique("sc_virtual_modifiers"))
@@ -49,6 +56,12 @@ pub(crate) fn show(app: &mut SolveApp, ui: &egui::Ui, rect: Rect) {
                         let button = egui::Button::new(RichText::new(label).size(16.0)).selected(*on).min_size(vec2(64.0, 40.0));
                         if ui.add(button).clicked() {
                             *on = !*on;
+                        }
+                    }
+                    for (label, key) in [("Esc", Key::Escape), ("Del", Key::Delete)] {
+                        if ui.add(egui::Button::new(RichText::new(label).size(16.0)).min_size(vec2(56.0, 40.0))).clicked() {
+                            press(app, key);
+                            ui.ctx().request_repaint();
                         }
                     }
                 });
