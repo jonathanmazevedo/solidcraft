@@ -31,6 +31,39 @@ pub fn apply(raw: &mut RawInput, real: &mut Modifiers, was: &mut Modifiers, shif
     *was = v;
 }
 
+/// On a touch screen a pen tap wobbles and lingers past egui's mouse-sized click limits, so the
+/// S Pen button's right-click never counted as a click. Also keeps a short log of button events
+/// shown above the strip, to see what the pen sends.
+fn watch_input(app: &mut SolveApp, ctx: &egui::Context) {
+    let (touch, lines, secondary_click) = ctx.input(|i| {
+        let touch = i.events.iter().any(|e| matches!(e, Event::Touch { .. }));
+        let lines: Vec<String> = i
+            .events
+            .iter()
+            .filter_map(|e| match e {
+                Event::PointerButton { button, pressed, pos, .. } => {
+                    Some(format!("{button:?} {} @{:.0},{:.0} t={:.2}", if *pressed { "down" } else { "up" }, pos.x, pos.y, i.time))
+                }
+                _ => None,
+            })
+            .collect();
+        (touch, lines, i.pointer.secondary_clicked())
+    });
+    if touch && !app.touch_seen {
+        app.touch_seen = true;
+        ctx.options_mut(|o| {
+            o.input_options.max_click_dist = 16.0;
+            o.input_options.max_click_duration = 1.5;
+        });
+    }
+    app.pen_log.extend(lines);
+    if secondary_click {
+        app.pen_log.push("=> secondary click".to_owned());
+    }
+    let excess = app.pen_log.len().saturating_sub(4);
+    app.pen_log.drain(..excess);
+}
+
 /// One key tap, through the synthetic queue so it arrives as a press and release next frame.
 fn press(app: &mut SolveApp, key: Key) {
     for pressed in [true, false] {
@@ -41,6 +74,7 @@ fn press(app: &mut SolveApp, key: Key) {
 /// Latched Shift/Ctrl and one-tap Esc/Del in a strip the user drags anywhere by its grip; it starts above the
 /// viewport's bottom toolbar.
 pub(crate) fn show(app: &mut SolveApp, ui: &egui::Ui, rect: Rect) {
+    watch_input(app, ui.ctx());
     egui::Area::new(egui::Id::unique("sc_virtual_modifiers"))
         .order(egui::Order::Foreground)
         .movable(true)
@@ -49,6 +83,9 @@ pub(crate) fn show(app: &mut SolveApp, ui: &egui::Ui, rect: Rect) {
         .default_pos(rect.center_bottom() - vec2(0.0, 72.0))
         .show(ui.ctx(), |ui| {
             egui::Frame::popup(ui.style()).show(ui, |ui| {
+                for line in &app.pen_log {
+                    ui.label(RichText::new(line).size(11.0).monospace());
+                }
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing = vec2(6.0, 0.0);
                     ui.add(egui::Label::new(RichText::new("≡").size(24.0)).selectable(false));
