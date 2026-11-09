@@ -31,20 +31,28 @@ pub fn apply(raw: &mut RawInput, real: &mut Modifiers, was: &mut Modifiers, shif
     *was = v;
 }
 
-/// Two latched buttons on the viewport's right edge, clear of the browser panel on the left.
+/// Two latched buttons in a strip the user drags anywhere by its grip; it starts above the
+/// viewport's bottom toolbar.
 pub(crate) fn show(app: &mut SolveApp, ui: &egui::Ui, rect: Rect) {
     egui::Area::new(egui::Id::unique("sc_virtual_modifiers"))
         .order(egui::Order::Foreground)
-        .pivot(Align2::RIGHT_CENTER)
-        .fixed_pos(rect.right_center() - vec2(12.0, 0.0))
+        .movable(true)
+        .constrain(true)
+        .pivot(Align2::CENTER_BOTTOM)
+        .default_pos(rect.center_bottom() - vec2(0.0, 72.0))
         .show(ui.ctx(), |ui| {
-            ui.spacing_mut().item_spacing = vec2(0.0, 8.0);
-            for (label, on) in [("⇧ Shift", &mut app.virtual_shift), ("Ctrl", &mut app.virtual_ctrl)] {
-                let button = egui::Button::new(RichText::new(label).size(18.0)).selected(*on).min_size(vec2(72.0, 48.0));
-                if ui.add(button).clicked() {
-                    *on = !*on;
-                }
-            }
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing = vec2(6.0, 0.0);
+                    ui.add(egui::Label::new(RichText::new("≡").size(24.0)).selectable(false));
+                    for (label, on) in [("⇧ Shift", &mut app.virtual_shift), ("Ctrl", &mut app.virtual_ctrl)] {
+                        let button = egui::Button::new(RichText::new(label).size(16.0)).selected(*on).min_size(vec2(64.0, 40.0));
+                        if ui.add(button).clicked() {
+                            *on = !*on;
+                        }
+                    }
+                });
+            });
         });
 }
 
