@@ -5630,6 +5630,7 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
         crate::view_angles::show(app, ui, rect);
         crate::navigation_bar_view::show(app, ui, rect);
     }
+    crate::virtual_modifiers::show(app, ui, rect);
     crate::viewport_status::show(app, ui.ctx(), rect);
     crate::viewport_status_fixture::show(app, ui.ctx(), rect);
     // The notices and the agent chip first, so the 3D mouse picture can keep clear of them.

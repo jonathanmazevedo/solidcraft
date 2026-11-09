@@ -329,6 +329,7 @@ mod view_confirm;
 pub mod view_gizmo;
 pub mod view_pick;
 pub mod viewport;
+pub mod virtual_modifiers;
 mod viewport_details;
 mod viewport_layout;
 mod viewport_status;
@@ -779,6 +780,11 @@ pub struct SolveApp {
     pub synthetic: Vec<egui::Event>,
     /// The modifiers of the synthetic press in progress (a Ctrl-drag keeps Ctrl while it moves).
     pub synthetic_mods: egui::Modifiers,
+    /// The on-screen Shift and Ctrl toggles ([`virtual_modifiers`]).
+    pub virtual_shift: bool,
+    pub virtual_ctrl: bool,
+    virtual_real_mods: egui::Modifiers,
+    virtual_applied: egui::Modifiers,
     /// A click that came in the same frame as typing before it, held for the next frame.
     held_click: Vec<egui::Event>,
     /// A synthetic press is held: its drag never moves the real cursor (`navigation::wrap_cursor`).
@@ -978,6 +984,10 @@ impl SolveApp {
             frame_rate: frame_rate::FrameRate::default(),
             synthetic: Vec::new(),
             synthetic_mods: egui::Modifiers::default(),
+            virtual_shift: false,
+            virtual_ctrl: false,
+            virtual_real_mods: egui::Modifiers::NONE,
+            virtual_applied: egui::Modifiers::NONE,
             held_click: Vec::new(),
             synthetic_press: false,
             control_rx: None,
@@ -3363,6 +3373,7 @@ impl SolveApp {
     /// capture hides the report waits for it (the control channel's typing too).
     pub fn raw_input_hook(&mut self, raw: &mut egui::RawInput) {
         self.synthetic_input(raw);
+        virtual_modifiers::apply(raw, &mut self.virtual_real_mods, &mut self.virtual_applied, self.virtual_shift, self.virtual_ctrl);
         finite_input(raw);
         self.hold_click_after_typing(raw);
         issue_report::hold_input(self, raw);
