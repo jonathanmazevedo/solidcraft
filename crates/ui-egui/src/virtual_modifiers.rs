@@ -28,13 +28,12 @@ pub fn apply(raw: &mut RawInput, real: &mut Modifiers, was: &mut Modifiers, shif
     if !v.is_none() || !was.is_none() {
         raw.events.push(Event::ModifiersChanged(*real | v));
     }
-    raw.modifiers = raw.modifiers | v;
     *was = v;
 }
 
 /// Two latched buttons on the viewport's left edge.
 pub(crate) fn show(app: &mut SolveApp, ui: &egui::Ui, rect: Rect) {
-    egui::Area::new(egui::Id::new("virtual_modifiers"))
+    egui::Area::new(egui::Id::unique("sc_virtual_modifiers"))
         .order(egui::Order::Foreground)
         .pivot(Align2::LEFT_CENTER)
         .fixed_pos(rect.left_center() + vec2(12.0, 0.0))
