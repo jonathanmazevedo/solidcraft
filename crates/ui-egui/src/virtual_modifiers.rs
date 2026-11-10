@@ -31,6 +31,27 @@ pub fn apply(raw: &mut RawInput, real: &mut Modifiers, was: &mut Modifiers, shif
     *was = v;
 }
 
+/// With the one-shot right-click armed, the next tap's primary press and release become secondary
+/// (a touch press can arrive twice in a frame, from pointer and touch events). Disarms once the
+/// tap is released.
+pub fn right_click(raw: &mut RawInput, armed: &mut bool) {
+    if !*armed {
+        return;
+    }
+    let mut released = false;
+    for event in &mut raw.events {
+        if let Event::PointerButton { button, pressed, .. } = event
+            && *button == egui::PointerButton::Primary
+        {
+            *button = egui::PointerButton::Secondary;
+            released |= !*pressed;
+        }
+    }
+    if released {
+        *armed = false;
+    }
+}
+
 /// On a touch screen a pen tap wobbles and lingers past egui's mouse-sized click limits, so the
 /// S Pen button's right-click never counted as a click. Also keeps a short log of button events
 /// shown above the strip, to see what the pen sends.
@@ -95,6 +116,10 @@ pub(crate) fn show(app: &mut SolveApp, ui: &egui::Ui, rect: Rect) {
                             *on = !*on;
                         }
                     }
+                    let right = egui::Button::new(RichText::new("Dir").size(16.0)).selected(app.virtual_right).min_size(vec2(56.0, 40.0));
+                    if ui.add(right).on_hover_text("Next tap is a right-click").clicked() {
+                        app.virtual_right = !app.virtual_right;
+                    }
                     for (label, key) in [("Esc", Key::Escape), ("Del", Key::Delete)] {
                         if ui.add(egui::Button::new(RichText::new(label).size(16.0)).min_size(vec2(56.0, 40.0))).clicked() {
                             press(app, key);
@@ -135,6 +160,19 @@ mod tests {
         assert!(modifiers.is_none());
         let Some(Event::ModifiersChanged(held)) = raw.events.last() else { panic!() };
         assert!(held.shift && held.command);
+    }
+
+    #[test]
+    fn armed_right_click_turns_one_tap_secondary() {
+        let release = Event::PointerButton { pos: pos2(1.0, 1.0), button: PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE };
+        let mut raw = RawInput { events: vec![press(), release.clone()], ..Default::default() };
+        let mut armed = true;
+        right_click(&mut raw, &mut armed);
+        assert!(!armed);
+        assert!(raw.events.iter().all(|e| matches!(e, Event::PointerButton { button: PointerButton::Secondary, .. })));
+        let mut raw = RawInput { events: vec![press(), release], ..Default::default() };
+        right_click(&mut raw, &mut armed);
+        assert!(matches!(raw.events[0], Event::PointerButton { button: PointerButton::Primary, .. }));
     }
 
     #[test]

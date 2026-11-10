@@ -51,6 +51,19 @@
     // the app's File ▸ Install app… item (src/install.rs). Installed, the browser makes no more offers.
     addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); window.solidcraftInstall = e; });
     addEventListener("appinstalled", () => { window.solidcraftInstall = null; });
+    // Temporary: what the browser itself reports for pen buttons, before the app sees it.
+    (() => {
+      const box = document.createElement("div");
+      box.style.cssText = "position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:99999;background:#000c;color:#7f7;font:11px monospace;padding:2px 6px;pointer-events:none;white-space:pre";
+      document.body.appendChild(box);
+      const lines = [];
+      const log = (e) => {
+        lines.push(`${e.type} ${e.pointerType ?? ""} button=${e.button} buttons=${e.buttons}`);
+        if (lines.length > 5) lines.shift();
+        box.textContent = lines.join("\n");
+      };
+      for (const t of ["pointerdown", "pointerup", "pointercancel", "contextmenu", "auxclick"]) addEventListener(t, log, true);
+    })();
   </script>
 </body>
 </html>
