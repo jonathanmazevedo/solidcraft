@@ -19,7 +19,7 @@
   <meta name="twitter:description" content="Open-source parametric CAD built in Rust. Desktop, browser, and MCP for AI agents.">
   <meta name="twitter:image" content="https://docs.solidcraft.io/og.png">
   <meta name="twitter:image:alt" content="SolidCraft: open-source parametric CAD built in Rust">
-  <link data-trunk rel="rust" data-bin="solidcraft-web" data-wasm-opt="z" data-weak-refs />
+  <link data-trunk rel="rust" data-bin="solidcraft-web" data-wasm-opt="0" data-weak-refs />
   <link data-trunk rel="copy-file" href="../../assets/fonts/biz-udp-gothic/BIZUDPGothic-Regular.ttf" data-target-path="fonts" />
   <link data-trunk rel="copy-file" href="../../assets/fonts/biz-udp-gothic/OFL.txt" data-target-path="fonts" />
   <link data-trunk rel="copy-file" href="../../assets/fonts/craft-ui-sc/CraftUI-SC.otf" data-target-path="fonts" />
@@ -51,18 +51,32 @@
     // the app's File ▸ Install app… item (src/install.rs). Installed, the browser makes no more offers.
     addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); window.solidcraftInstall = e; });
     addEventListener("appinstalled", () => { window.solidcraftInstall = null; });
-    // Temporary: what the browser itself reports for pen buttons, before the app sees it.
+    // Touch fork: Android reports the S Pen side button only as a `contextmenu` (no pointer press,
+    // and nothing at all while it is held), so the page turns it into a right-click there. A
+    // finger's long press also fires `contextmenu`; that one is left to the app, which opens its
+    // tool ring for it (crates/ui-egui/src/viewport.rs).
     (() => {
-      const box = document.createElement("div");
-      box.style.cssText = "position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:99999;background:#000c;color:#7f7;font:11px monospace;padding:2px 6px;pointer-events:none;white-space:pre";
-      document.body.appendChild(box);
-      const lines = [];
-      const log = (e) => {
-        lines.push(`${e.type} ${e.pointerType ?? ""} button=${e.button} buttons=${e.buttons}`);
-        if (lines.length > 5) lines.shift();
-        box.textContent = lines.join("\n");
-      };
-      for (const t of ["pointerdown", "pointerup", "pointercancel", "contextmenu", "auxclick"]) addEventListener(t, log, true);
+      // A finger's long press starts with a touch press not yet lifted (the browser may cancel it
+      // as the long press begins), while the pen button's `contextmenu` comes with no press at all.
+      let touchDown = -1e9, touchUp = -1e9;
+      addEventListener("pointerdown", (e) => { if (e.isTrusted && e.pointerType === "touch") touchDown = performance.now(); }, true);
+      addEventListener("pointerup", (e) => { if (e.isTrusted && e.pointerType === "touch") touchUp = performance.now(); }, true);
+      addEventListener("touchstart", (e) => { if (e.isTrusted) touchDown = performance.now(); }, true);
+      addEventListener("touchend", (e) => { if (e.isTrusted && e.touches.length === 0) touchUp = performance.now(); }, true);
+      addEventListener("contextmenu", (e) => {
+        if (!e.isTrusted || e.button === 2) return;
+        e.preventDefault();
+        const now = performance.now();
+        const finger = touchDown > touchUp && now - touchDown < 3000;
+        const pen = !finger;
+        if (!pen) return;
+        e.stopImmediatePropagation();
+        const canvas = document.getElementById("solidcraft_canvas");
+        if (!canvas) return;
+        const init = { bubbles: true, cancelable: true, pointerId: 999, pointerType: "mouse", button: 2, clientX: e.clientX, clientY: e.clientY };
+        canvas.dispatchEvent(new PointerEvent("pointerdown", { ...init, buttons: 2 }));
+        setTimeout(() => document.dispatchEvent(new PointerEvent("pointerup", { ...init, buttons: 0 })), 50);
+      }, true);
     })();
   </script>
 </body>

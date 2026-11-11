@@ -5314,6 +5314,11 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
                 crate::tools::finish(app);
             } else if app.dialog.is_none() {
                 crate::context_menu::open(app, p, held_mods);
+                // Touch fork: a finger's long press always brings the tool ring.
+                if resp.long_touched() && app.menu.target == crate::context_menu::Target::Viewport {
+                    app.menu.radial = true;
+                    app.menu.ring_only = true;
+                }
             }
         }
     }

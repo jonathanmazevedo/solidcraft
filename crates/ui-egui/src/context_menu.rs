@@ -169,6 +169,8 @@ pub struct MenuState {
     submenu_leave: Option<(usize, f64)>,
     /// The radial ring is shown (viewport menus).
     pub radial: bool,
+    /// Touch fork: only the ring, without the list beside it (a finger's long press).
+    pub ring_only: bool,
     /// The right button is held through the menu: releasing over a direction picks it.
     pub flick: bool,
     /// A right press in the viewport that may become a press-and-hold: where and when.
@@ -2241,6 +2243,7 @@ pub fn open_for(app: &mut SolveApp, at: Pos2, target: Target) {
     app.menu.submenu_key = None;
     app.menu.submenu_leave = None;
     app.menu.radial = target == Target::Viewport && app.preferences.radial_context_menu;
+    app.menu.ring_only = false;
     app.menu.target = target;
     app.menu.flick = false;
     app.menu.opener = None;
@@ -2489,7 +2492,7 @@ fn track_hold(app: &mut SolveApp, ctx: &egui::Context) {
     if !app.preferences.radial_context_menu || crate::mouse_gesture::active(app) {
         app.menu.press = None;
         app.menu.flick = false;
-        app.menu.radial = false;
+        // Touch fork: the ring stays as the menu opened (a finger's long press always brings it).
         return;
     }
     let (pressed, down, released, pos, time) = ctx.input(|i| {
@@ -2608,6 +2611,7 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
     let leaving = app.menu.submenu_leave.map(|(depth, _)| depth);
     let key_row = app.menu.key_row;
     let mut seen: Vec<Seen> = Vec::new();
+    if !(app.menu.ring_only && app.menu.radial) {
     let resp = Container::new(ctx, Surface::Popup)
         .area(egui::Id::unique("sc_context_menu"))
         .fixed_pos(list_at)
@@ -2637,6 +2641,7 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
         inside |= sub.response.contains_pointer() || pointer.is_some_and(|p| sub.response.rect.contains(p));
         leftward = sub.response.rect.center().x < row.center().x;
         seen.push(sub.inner);
+    }
     }
 
     let moved = ctx.input(|i| i.pointer.delta() != Vec2::ZERO);

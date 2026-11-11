@@ -787,7 +787,7 @@ pub struct SolveApp {
     virtual_applied: egui::Modifiers,
     virtual_right: bool,
     touch_seen: bool,
-    pen_log: Vec<String>,
+    virtual_ring: bool,
     /// A click that came in the same frame as typing before it, held for the next frame.
     held_click: Vec<egui::Event>,
     /// A synthetic press is held: its drag never moves the real cursor (`navigation::wrap_cursor`).
@@ -993,7 +993,7 @@ impl SolveApp {
             virtual_applied: egui::Modifiers::NONE,
             virtual_right: false,
             touch_seen: false,
-            pen_log: Vec::new(),
+            virtual_ring: false,
             held_click: Vec::new(),
             synthetic_press: false,
             control_rx: None,
