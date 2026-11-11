@@ -1324,6 +1324,18 @@ pub fn menu_tip(ui: &egui::Ui, menu: Rect, resp: &egui::Response, add: impl FnOn
     Some(area.inner.response.rect)
 }
 
+/// What a menu row or cell senses: clicks when enabled, and drags onto the ribbon. Touch fork:
+/// under a finger a row takes no drag, so the drag scrolls the menu instead.
+fn row_sense(ui: &egui::Ui, enabled: bool) -> Sense {
+    let touching = ui.input(egui::InputState::any_touches);
+    match (enabled, touching) {
+        (true, true) => Sense::click(),
+        (true, false) => Sense::click_and_drag(),
+        (false, true) => Sense::hover(),
+        (false, false) => Sense::drag(),
+    }
+}
+
 /// One command row of a group's menu: icon, label and shortcut, with the hover background under
 /// the pointer or keyboard focus (like every menu), and a pin at its end. `revealed` is the pulse
 /// strength when the search points this row out (#7287). Returns what was chosen, with the row's
@@ -1332,7 +1344,7 @@ pub fn menu_row(ui: &mut egui::Ui, entry: &MenuEntry, width: f32, revealed: Opti
     let t = Tokens::get();
     let (rect, _) = ui.allocate_exact_size(vec2(width, ROW_H), Sense::hover());
     // Every row drags onto the ribbon (to pin it there); enabled rows also start their command.
-    let sense = if entry.enabled { Sense::click_and_drag() } else { Sense::drag() };
+    let sense = row_sense(ui, entry.enabled);
     let resp = ui.interact(rect, style.focus_id(entry.id), sense);
     // Focus can settle on the following frame, after the key event has gone.
     // Keep the focused row visible even then in a menu taller than the window.
@@ -1709,7 +1721,7 @@ pub fn grid(ui: &mut egui::Ui, entries: &[(Option<&str>, MenuEntry)], loose: &[&
 /// its corner says it is on the ribbon. Returns what was chosen, with the icon drawn.
 pub fn grid_cell(ui: &mut egui::Ui, entry: &MenuEntry, rect: Rect, style: &MenuStyle) -> (Option<MenuAction>, GridCell) {
     let t = Tokens::get();
-    let sense = if entry.enabled { Sense::click_and_drag() } else { Sense::drag() };
+    let sense = row_sense(ui, entry.enabled);
     let resp = ui.interact(rect, style.focus_id(entry.id), sense);
     if resp.has_focus() && !ui.clip_rect().contains_rect(rect) {
         resp.scroll_to_me_animation(None, egui::style::ScrollAnimation::none());

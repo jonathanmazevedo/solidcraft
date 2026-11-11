@@ -288,8 +288,24 @@ pub fn component_bodies(app: &SolveApp, id: u64) -> Vec<String> {
     app.session.model.state().bodies.iter().filter(|b| doc.component_within(doc.model_body_component(b), id)).map(|b| b.name.clone()).collect()
 }
 
-/// The eight radial commands, clockwise from the top.
+/// The radial commands, clockwise from the top. Touch fork: the ring follows the tools the
+/// person chose for this studio in the gesture editor (Preferences › Navigation › Customize…),
+/// up to the eight the ring has room for.
 pub fn radial_items(app: &SolveApp) -> Vec<Item> {
+    let studio = crate::mouse_gesture::Studio::of(app);
+    if app.preferences.mouse_gestures.is_custom(studio) {
+        let key = crate::keymap::display_for(app, "edit.repeat").unwrap_or_default();
+        return crate::mouse_gesture::items(app, studio)
+            .into_iter()
+            .take(8)
+            .map(|item| if item.id == "ui.repeat" { item.key(&key) } else { item })
+            .collect();
+    }
+    default_radial_items(app)
+}
+
+/// The eight radial commands as shipped, clockwise from the top.
+fn default_radial_items(app: &SolveApp) -> Vec<Item> {
     let key = crate::keymap::display_for(app, "edit.repeat").unwrap_or_default();
     let repeat = match &app.last_command {
         Some((_, label)) => act("ui.repeat", &format!("Repeat {label}"), "redo").key(&key),

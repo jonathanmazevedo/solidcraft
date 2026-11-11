@@ -31,27 +31,6 @@ pub fn apply(raw: &mut RawInput, real: &mut Modifiers, was: &mut Modifiers, shif
     *was = v;
 }
 
-/// With the one-shot right-click armed, the next tap's primary press and release become secondary
-/// (a touch press can arrive twice in a frame, from pointer and touch events). Disarms once the
-/// tap is released.
-pub fn right_click(raw: &mut RawInput, armed: &mut bool) {
-    if !*armed {
-        return;
-    }
-    let mut released = false;
-    for event in &mut raw.events {
-        if let Event::PointerButton { button, pressed, .. } = event
-            && *button == egui::PointerButton::Primary
-        {
-            *button = egui::PointerButton::Secondary;
-            released |= !*pressed;
-        }
-    }
-    if released {
-        *armed = false;
-    }
-}
-
 /// On a touch screen a finger or pen tap wobbles and lingers past egui's mouse-sized click limits;
 /// the click time is also how long a touch is held for a long press (the tool ring).
 fn watch_input(app: &mut SolveApp, ctx: &egui::Context) {
@@ -209,19 +188,6 @@ mod tests {
         assert!(modifiers.is_none());
         let Some(Event::ModifiersChanged(held)) = raw.events.last() else { panic!() };
         assert!(held.shift && held.command);
-    }
-
-    #[test]
-    fn armed_right_click_turns_one_tap_secondary() {
-        let release = Event::PointerButton { pos: pos2(1.0, 1.0), button: PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE };
-        let mut raw = RawInput { events: vec![press(), release.clone()], ..Default::default() };
-        let mut armed = true;
-        right_click(&mut raw, &mut armed);
-        assert!(!armed);
-        assert!(raw.events.iter().all(|e| matches!(e, Event::PointerButton { button: PointerButton::Secondary, .. })));
-        let mut raw = RawInput { events: vec![press(), release], ..Default::default() };
-        right_click(&mut raw, &mut armed);
-        assert!(matches!(raw.events[0], Event::PointerButton { button: PointerButton::Primary, .. }));
     }
 
     #[test]

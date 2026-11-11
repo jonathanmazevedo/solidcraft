@@ -785,7 +785,6 @@ pub struct SolveApp {
     pub virtual_ctrl: bool,
     virtual_real_mods: egui::Modifiers,
     virtual_applied: egui::Modifiers,
-    virtual_right: bool,
     touch_seen: bool,
     virtual_ring: bool,
     /// A click that came in the same frame as typing before it, held for the next frame.
@@ -991,7 +990,6 @@ impl SolveApp {
             virtual_ctrl: false,
             virtual_real_mods: egui::Modifiers::NONE,
             virtual_applied: egui::Modifiers::NONE,
-            virtual_right: false,
             touch_seen: false,
             virtual_ring: false,
             held_click: Vec::new(),
@@ -3380,7 +3378,6 @@ impl SolveApp {
     pub fn raw_input_hook(&mut self, raw: &mut egui::RawInput) {
         self.synthetic_input(raw);
         virtual_modifiers::apply(raw, &mut self.virtual_real_mods, &mut self.virtual_applied, self.virtual_shift, self.virtual_ctrl);
-        virtual_modifiers::right_click(raw, &mut self.virtual_right);
         finite_input(raw);
         self.hold_click_after_typing(raw);
         issue_report::hold_input(self, raw);
